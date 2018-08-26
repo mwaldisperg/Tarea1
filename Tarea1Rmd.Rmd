@@ -1,0 +1,132 @@
+---
+title: "Tarea1"
+author: "Melany Waldisperg"
+date: "21 de agosto del 2018"
+output: 
+    html_document:
+      fig_caption: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,warning = FALSE,message = FALSE)
+library(tidyverse)
+library(rmarkdown)
+library(tinytex)
+library(pacman)
+library(swirl)
+library(broom)
+library(dismo)
+library(data.table)
+library(knitr)
+options(scipen=999)
+parks <- read_csv("parks.csv")
+species <- read_csv("species.csv")
+
+colnames(parks)<-make.names(colnames(parks))
+colnames(species)<-make.names(colnames(species))
+
+parks1<-parks %>% group_by(Park.Name)
+species1<-species %>% group_by(Park.Name)
+
+parks.species <- parks %>% full_join(species) 
+dplyr::select
+
+parks.species<-parks.species %>% filter(Occurrence == "Present") %>% dplyr::select(Park.Name, Park.Code, Acres,Latitude, Longitude, Common.Names,Scientific.Name,Abundance, Category,Nativeness,  Conservation.Status) 
+
+Animal<-parks.species %>% filter(!is.na(Abundance)) %>% filter(Category == "Mammal"| Category == "Bird"| Category == "Reptile"| Category == "Amphibian"| Category == "Fish"| Category == "Invertebrate"|
+                                   Category == "Insect"| Category == "Spider/Scorpion"| Category == "Crab/Lobster/Shrimp"| Category == "Slug/Snail") %>% filter(Nativeness == "Native" | Nativeness == "Not Native") %>% mutate(Grupo= c("Animal"))
+
+Plant<-parks.species %>% filter(!is.na(Abundance)) %>% filter(Category == "Vascular Plant"| Category == "Fungi"| Category == "Algae"| Category == "Nonvascular Plant") %>% filter(Nativeness == "Native" | Nativeness == "Not Native") %>% mutate(Grupo= c("Planta"))
+
+Full<- Animal %>% full_join(Plant) 
+
+Fullnative<- Animal %>% full_join(Plant) %>% filter(Nativeness == "Native")
+
+Calida<-Full %>% arrange(Latitude) %>% filter(Latitude== 19.38 | Latitude== 20.72)%>% mutate(Zona= c("Cálida"))
+Templada<-Full %>% arrange(Latitude) %>% filter(Latitude != 19.38 & Latitude != 20.72 & Latitude != 67.55 & Latitude != 67.78)%>% mutate(Zona= c("Templada"))
+Fria<-Full %>% arrange(Latitude) %>% filter(Latitude== 67.55 | Latitude== 67.78)%>% mutate(Zona= c("Fría"))
+
+Latitudful<- Calida %>% full_join(Fria)
+Latitudfull<- Latitudful %>% full_join(Templada) %>% mutate(Zona =fct_relevel(factor(Zona), c("Cálida", "Templada")))
+
+Full11<-Full %>% group_by(Acres,Park.Code) %>% summarise(n=n()) %>% rename(Riqueza=n)
+
+Latitudfulll<-Latitudfull %>% arrange(Latitude)
+Latitud<-c("[19.38-20.72]","[24.63-66.33]","[67.55-67.78]")
+Zona<-c("Cálida", "Templada", "Fría")
+Tabla1<-data.frame(Zona,Latitud)
+
+Tabla2<-Latitudfull %>% dplyr::select(Category,Scientific.Name)
+
+Categ<-c("Plantas vasculares, Plantas no-vasculares, Fungi, Algas", "Mamíferos, Aves, Reptiles, Anfibios, Peces, Cangrejos/Langostas/Camarones, Babosas/Caracoles, Arañas/Escorpiones, Insectos, Invertebrados")
+Group<- c("Planta", "Animal")
+Tabla3<-data.frame(Group, Categ)
+
+Tabla4a<-data.frame(Latitudfull %>% group_by(Acres,Grupo,Park.Code) %>% summarise(n=n()) %>% rename(Riqueza=n))
+Tabla4<- Tabla4a %>% dplyr::select(Grupo,Riqueza) %>% group_by(Grupo) %>% summarise (Promedio=round(mean(Riqueza),2), DE=round(sd(Riqueza),2))
+
+DE<-c(494.27, 484.71, 119.50)
+Promedio<-c(2372.50, 1238.08, 637.50)
+Zona<- c("Cálida", "Templada", "Fría")
+Tabla5<-data.frame(Zona, Promedio, DE)
+
+
+```
+##Introducción
+Reporte de la riqueza y abundancia de especies nativas e introducidas de plantas y animales presentes en los parques nacionales incluidos en la base de datos "Biodiversity".
+Hipótesis 1: La riqueza de especies incrementa con el tamaño de los parques nacionales.
+Hipótesis 2: La riqueza de especies de plantas es mayor que la de animales.
+Hipótesis 3: La riqueza de especies nativas es mayor a la de especies no-nativas.
+Hipótesis 4: La riqueza de especies es mayor en zonas cálidas que en templadas y frías.
+Hipótesis 5: La riqueza de especies aumenta con el desconocimiento y disminución de su abundancia por zona.
+
+##Metodología
+Durante el estudio se analizó la base de datos "Biodiversity" con el programa Rstudio. Se estimó la riqueza de especies por parque nacional. A continuación, se clasificaron las especies en dos grupos (planta y animal), según las categorías indicadas en la base de datos (Tabla 1). Además, se trabajó separando las especies nativas y no-nativas y los parques nacionales según tamaños en acres. Finalmente, los parques fueron agrupados en tres zonas (Cálida, Templada, Fría) según la latitud en la que se encontraban (Tabla 2). 
+
+##Resultados y Discusión
+
+En la Figura 1 se observa que la riqueza de especies no parece tener una tendencia a incrementar con el tamaño del parque, donde el valor máximo de 2722 especies fue encontrado en el parque HAVO con un tamaño de 323431 acres. La media del tamaño de los parques fue de `r round(mean(Full11$Acres, na.rm=TRUE),2)` acres con una desviación estándar de `r round(sd(Full11$Acres, na.rm=TRUE),2)` acres. Los altos valores de riqueza parecen estar explicados por el gran número de especies pertenecientes a la categoria Algas (Fig. 2), incluida en el grupo Planta (Tabla 1). Los altos valores de riqueza encontrada en la categoría Algas podrían explicar la diferencia en el número de especies entre los grupos Planta y Animal (Fig. 3, Tabla 3). Sin embargo, con valores de desviación estándar de `r (Tabla4$DE)` para el grupo Animal y Planta respectivamente, no se puede afirmar que exista una diferencia en riqueza entre los grupos. Por otro lado, la riqueza de especies nativas parece superar a las no-nativas, fenómeno que parece estar más marcado en el grupo Planta que Animal (Fig. 3). A pesar de tener una riqueza similar los grupos Planta y Animal, la mayor parte de la riqueza Animal posee una abundancia desconocida (Fig. 4). La riqueza de especies por Zona efectivamente indica un mayor número de especies en latitudes cálidas que en templadas y frías, sin embargo, la varianza debida al número de muestras por zona es muy grande volviendo este resultado poco fiable (Fig. 5). A pesar de ello, podemos observar que en las latitudes cálidas y templadas las especies abundantes, comunes, raras y poco comunes pertenecen al grupo Planta, mientras que, en latitudes frías las especies del grupo Planta dominaban con abundancia desconocida (Fig. 4). Para las tres zonas no se cumple el incremento en el número de especies con la disminución de la abundancia, pero sí, con el desconocimiento (Fig. 4). La falta de muestras para zonas cálidas y frías podría ser la causa de la ausencia en la tendencia del número de especies a disminuír con la abundancia.
+
+
+##Conclusiones
+La riqueza de especies de los parques nacionales incluidos en la base de datos "Biodiversity" se observó que no aumenta con el tamaño del parque, ni es mayor en el grupo de plantas que de animales como se esperaba en este trabajo. Sin embargo, parece cumplirse que es mayor el número de especies nativas que no-nativas y especies de zonas cálidas que templadas y frías. La abundancia de especies según la zona a la que pertenecen indicó un incremento en la riqueza de aquellas indicadas con abundancia desconocida, aunque, no se observó una tendencia positiva en el número de especies con la disminución de la abundancia. Finalmente, se concluye que si bien los análisis en este informe entregan información suficiente para aceptar dos de las 5 hipótesis planteadas, existen serios problemas muestreales para poder validar los resultados. Por consiguiente, se propone ampliar la matriz de datos con nueva información de parques de zonas cálidas y frías para volver a poner a prueba las hipótesis planteadas.  
+
+```{r,fig.cap="Figura 4. Riqueza de especies según zona, grupo y abundancia."}
+
+Abundancia<-Latitudfull %>%  group_by(Abundance,Zona,Park.Code,Grupo)  %>% summarise(n=n()) %>% rename(Riqueza=n)
+
+ggplot(Abundancia, aes(x=Abundance, y=Riqueza))+geom_col(aes(fill=Grupo,group=Zona, color=Zona), position = "dodge")+theme_classic() + theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+
+```
+
+```{r,fig.cap="Figura 5. Riqueza de especies según zona y tamaño de los parques. Cada punto indica un parque nacional."}
+Latitudfull1<-Latitudfull %>%  group_by(Acres,Zona,Latitude)  %>% summarise(n=n()) %>% rename(Riqueza=n)%>% arrange(Latitude)
+ggplot(Latitudfull1, aes(x=Zona, y=Riqueza))+geom_point(aes(size=Acres))+theme_classic()+geom_smooth(method="lm")
+
+```
+```{r,fig.cap="Figura 2. Riqueza de especies según tamaño del parque nacional y categoría. Cada punto indica un parque nacional."}
+Full1<-Full %>% group_by(Acres,Park.Code,Category) %>% summarise(n=n()) %>% rename(Riqueza=n)
+ggplot(Full1, aes(x=Acres, y=Riqueza))+geom_point(aes(color=Category))+theme_classic()
+
+```
+
+```{r,fig.cap="Figura 1. Riqueza de especies según parque nacional con su respectivo tamaño."}
+Full11<-Full %>% group_by(Acres,Park.Code) %>% summarise(n=n()) %>% rename(Riqueza=n)
+ggplot(Full11, aes(x=reorder(Park.Code,Acres), y=Riqueza))+geom_point(aes(size=Acres))+theme_classic()+ theme(axis.text.x = element_text(angle = 90))
+
+```
+
+```{r,fig.cap="Figura 3. Riquea de especies nativas y no-nativas según grupo."}
+Full2<-Full %>% group_by(Acres,Park.Code,Grupo,Nativeness) %>% summarise(n=n()) %>% rename(Riqueza=n)
+ggplot(Full2, aes(x=Grupo, y=Riqueza))+geom_boxplot()+theme_classic()+geom_jitter(aes(color=Nativeness))
+
+```
+
+```{r}
+kable(Tabla3, caption="Tabla 1. Categorías seleccionadas para los grupos planta y animal", digits=2)
+kable(Tabla1, caption="Tabla 2. Intervalos de latitud para las zonas cálidas, templadas y frías", digits=2)
+kable(Tabla4, caption="Tabla 3. Promedio y desviación estándar de la riqueza de plantas y animales", digits=2)
+
+
+```
+
